@@ -84,7 +84,7 @@ public class DropboxService {
 		return result;
 	}
 
-	public void backupFiles() throws Exception {
+	public void backupOrderFiles() throws Exception {
 		DbxClientV2 dbxClientV2WithToken = dbxClientV2WithToken();
 		List<Metadata> entries = dbxClientV2WithToken.files().listFolder("/orders/current_orders/orders").getEntries();
 		List<String> orderFileNames = new ArrayList<>();
@@ -120,6 +120,46 @@ public class DropboxService {
 		/// download and read the file data
 			System.out.println("orderFileNames - "+ orderFileNames.toString());
 	}
+
+
+	public void backupOrderItemsFiles() throws Exception {
+		DbxClientV2 dbxClientV2WithToken = dbxClientV2WithToken();
+		List<Metadata> entries = dbxClientV2WithToken.files().listFolder("/orders/current_orders/order_items").getEntries();
+		List<String> orderFileNames = new ArrayList<>();
+		List<File> downloadedFiles =  new ArrayList<>();
+		//download the master file
+		File mainOrderFile = downloadFile(dbxClientV2WithToken,
+				"/orders/sum_orders/order_items.csv", "order_items.csv");
+		System.out.println("order_items mainOrderFile - "+ mainOrderFile);
+		for (Metadata entry : entries ) {
+			if (entry instanceof FileMetadata) {
+				orderFileNames.add(entry.getName());
+				downloadedFiles.add(downloadFile(dbxClientV2WithToken, entry.getPathDisplay(), entry.getName()));
+			}
+
+		}
+		for (File file : downloadedFiles) {
+			String data = convretFileToString(file);
+			String headerRemovedContent = removeHeader(data);
+			addNewLineToFile(mainOrderFile, headerRemovedContent);
+		}
+		uploadFileToDropbox(mainOrderFile,dbxClientV2WithToken, "/orders/sum_orders/order_items.csv");
+		System.out.println("uploadFileToDropbox order_items- ");
+
+		Files.deleteIfExists(Paths.get("order_items.csv"));
+		orderFileNames.forEach(fileName ->{
+			try {
+				Files.deleteIfExists(Paths.get(fileName));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		System.out.println("delete Temp files order_items ");
+		/// download and read the file data
+		System.out.println("orderFileNames order_items - "+ orderFileNames.toString());
+	}
+
+
 
 
 
@@ -176,9 +216,7 @@ public class DropboxService {
 
 		// Create a MultiValueMap to hold the form parameters (variables)
 		MultiValueMap<String, String> formParameters = new LinkedMultiValueMap<>();
-		formParameters.add("grant_type", "refresh_token");
 		
-
 
 		// Set the request headers
 		HttpHeaders headers = new HttpHeaders();

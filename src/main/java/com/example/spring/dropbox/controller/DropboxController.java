@@ -68,11 +68,22 @@ public class DropboxController {
 		return new ResponseEntity<>(response, HttpStatus.OK);
 	}
 
-	@GetMapping("/backup")
-	public List<Map<String, Object>> backup() throws Exception {
-		 dropboxService.backupFiles();
-
+	@GetMapping("/backup/orders")
+	public List<Map<String, Object>> backupOrders() throws Exception {
+		 dropboxService.backupOrderFiles();
 		return null;
+	}
+
+	@GetMapping("/backup/orderitems")
+	public List<Map<String, Object>> backupOrderItems() throws Exception {
+		dropboxService.backupOrderItemsFiles();
+		return null;
+	}
+
+
+	@GetMapping("/heath")
+	public String heath() throws Exception {
+		return "OK";
 	}
 
 }
