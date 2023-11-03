@@ -5,6 +5,7 @@ import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.http.StandardHttpRequestor;
 import com.dropbox.core.v2.DbxClientV2;
 import com.example.spring.dropbox.config.WebConfig;
+import com.example.spring.dropbox.config.WebSocketConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -16,7 +17,7 @@ import org.springframework.context.annotation.Import;
 		"com.example.spring.dropbox.controller",
 		"com.example.spring.dropbox.service"
 })
-@Import({WebConfig.class})
+@Import({WebConfig.class, WebSocketConfig.class})
 public class DropboxExampleApplication {
 
 	public static void main(String[] args) {

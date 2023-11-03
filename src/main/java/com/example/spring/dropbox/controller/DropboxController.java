@@ -1,6 +1,7 @@
 package com.example.spring.dropbox.controller;
 
 import com.dropbox.core.v2.DbxClientV2;
+import com.example.spring.dropbox.config.MyWebSocketHandler;
 import com.example.spring.dropbox.model.DropboxItem;
 import com.example.spring.dropbox.service.DropboxService;
 import com.example.spring.dropbox.util.DropboxAction;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,10 +29,12 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("dropbox")
+@CrossOrigin
 public class DropboxController {
 
 	private static final Logger logger = LoggerFactory.getLogger(DropboxController.class);
-
+	@Autowired
+	private MyWebSocketHandler myWebSocketHandler;
 	@Autowired
 	DropboxService dropboxService;
 
@@ -85,5 +90,12 @@ public class DropboxController {
 	public String heath() throws Exception {
 		return "OK";
 	}
+
+
+	@GetMapping("/broadcast")
+	public void broadcast(@RequestParam(value = "message", required = false, defaultValue = "") String message) throws Exception {
+		myWebSocketHandler.broadcastMessage(message);
+	}
+
 
 }

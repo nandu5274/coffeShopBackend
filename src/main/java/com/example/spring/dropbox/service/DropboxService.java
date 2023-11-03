@@ -216,7 +216,11 @@ public class DropboxService {
 
 		// Create a MultiValueMap to hold the form parameters (variables)
 		MultiValueMap<String, String> formParameters = new LinkedMultiValueMap<>();
-		
+		formParameters.add("grant_type", "refresh_token");
+		formParameters.add("refresh_token", "sL19DldRa4wAAAAAAAAAAdrh2T7brBUwud0PU64qYnRwGPPxtuQSHkpvXgCIYtW8");
+		formParameters.add("client_id", "72ecq2vxlip8j51");
+		formParameters.add("client_secret", "btxsvfze6gzz7tk");
+
 
 		// Set the request headers
 		HttpHeaders headers = new HttpHeaders();
