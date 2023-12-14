@@ -3,6 +3,8 @@ package com.example.spring.dropbox.controller;
 import com.dropbox.core.v2.DbxClientV2;
 import com.example.spring.dropbox.config.MyWebSocketHandler;
 import com.example.spring.dropbox.model.DropboxItem;
+import com.example.spring.dropbox.pojo.OrderRequestDto;
+import com.example.spring.dropbox.service.CkAccountDropboxService;
 import com.example.spring.dropbox.service.DropboxService;
 import com.example.spring.dropbox.util.DropboxAction;
 import org.slf4j.Logger;
@@ -39,6 +41,9 @@ public class DropboxController {
 	DropboxService dropboxService;
 
 	@Autowired
+	CkAccountDropboxService ckAccountDropboxService;
+
+	@Autowired
 	DbxClientV2 dropboxClient;
 
 	@PostMapping("/upload")
@@ -51,7 +56,10 @@ public class DropboxController {
 	public List<Map<String, Object>> index(@RequestParam(value = "target", required = false, defaultValue = "") String target) throws Exception {
 		return dropboxService.getFileList(target);
 	}
-
+	@GetMapping("/list2")
+	public List<Map<String, Object>> index2(@RequestParam(value = "target", required = false, defaultValue = "") String target) throws Exception {
+		return ckAccountDropboxService.getFileList(target);
+	}
 	@GetMapping("/browse")
 	public Map<String, Object> brwose(@RequestParam(value = "target", required = false, defaultValue = "") String target) throws Exception {
 		Map<String, Object> data = new HashMap<>();
@@ -85,6 +93,12 @@ public class DropboxController {
 		return null;
 	}
 
+	@GetMapping("/backup/approvedorders")
+	public List<Map<String, Object>> backupCurrentOrders() throws Exception {
+		dropboxService.backupApprovedOrders();
+		return null;
+	}
+
 
 	@GetMapping("/heath")
 	public String heath() throws Exception {
@@ -95,6 +109,13 @@ public class DropboxController {
 	@GetMapping("/broadcast")
 	public void broadcast(@RequestParam(value = "message", required = false, defaultValue = "") String message) throws Exception {
 		myWebSocketHandler.broadcastMessage(message);
+	}
+
+	@PostMapping("/broadcastobject")
+	public String broadcastObject(@RequestBody OrderRequestDto request) throws Exception {
+		System.out.println("request - " + request);
+		myWebSocketHandler.broadcastObject(request);
+		return "";
 	}
 
 

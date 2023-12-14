@@ -15,6 +15,7 @@ import com.opencsv.CSVReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -45,6 +46,7 @@ public class DropboxService {
 	private static final Logger logger = LoggerFactory.getLogger(DropboxService.class);
 
 	@Autowired
+	@Qualifier("dropboxClient")
 	DbxClientV2 dropboxClient;
 
 	private final RestTemplate restTemplate;
@@ -147,6 +149,63 @@ public class DropboxService {
 		System.out.println("uploadFileToDropbox order_items- ");
 
 		Files.deleteIfExists(Paths.get("order_items.csv"));
+		orderFileNames.forEach(fileName ->{
+			try {
+				Files.deleteIfExists(Paths.get(fileName));
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		System.out.println("delete Temp files order_items ");
+		/// download and read the file data
+		System.out.println("orderFileNames order_items - "+ orderFileNames.toString());
+	}
+
+	public void backupApprovedOrders() throws Exception {
+		DbxClientV2 dbxClientV2WithToken = dbxClientV2WithToken();
+		List<Metadata> entries = dbxClientV2WithToken.files().listFolder("/orders/current_orders/").getEntries();
+		List<String> orderFileNames = new ArrayList<>();
+		List<File> downloadedFiles =  new ArrayList<>();
+		//download the master file
+		File mainOrderItemsFile = downloadFile(dbxClientV2WithToken,
+				"/orders/sum_orders/order_items.csv", "order_items.csv");
+		System.out.println("order_items mainOrderFile - "+ mainOrderItemsFile);
+
+		File mainOrderFile = downloadFile(dbxClientV2WithToken,
+				"/orders/sum_orders/orders.csv", "orders.csv");
+		System.out.println("mainOrderFile - "+ mainOrderFile);
+
+
+		for (Metadata entry : entries ) {
+			if (entry instanceof FileMetadata) {
+				orderFileNames.add(entry.getName());
+				downloadedFiles.add(downloadFile(dbxClientV2WithToken, entry.getPathDisplay(), entry.getName()));
+			}
+
+		}
+//
+		for (File file : downloadedFiles) {
+			String data = convretFileToString(file);
+			String headerRemovedContent = removeHeader(data);
+			String OrderData = getOrderData(headerRemovedContent);
+			String getOrderItemsData = getOrderItemsData(headerRemovedContent);
+			addNewLineToFile(mainOrderFile, OrderData);
+			addNewLineToFile(mainOrderItemsFile, getOrderItemsData);
+		}
+
+
+
+
+//
+		uploadFileToDropbox(mainOrderFile,dbxClientV2WithToken, "/orders/sum_orders/orders.csv");
+		System.out.println("uploadFileToDropbox order - ");
+
+		uploadFileToDropbox(mainOrderItemsFile,dbxClientV2WithToken, "/orders/sum_orders/order_items.csv");
+		System.out.println("uploadFileToDropbox order_items- ");
+
+		Files.deleteIfExists(Paths.get("orders.csv"));
+		Files.deleteIfExists(Paths.get("order_items.csv"));
+
 		orderFileNames.forEach(fileName ->{
 			try {
 				Files.deleteIfExists(Paths.get(fileName));
@@ -280,6 +339,26 @@ public class DropboxService {
 
 		StringBuilder modifiedContent = new StringBuilder();
 		for (int i = 1; i < lines.length; i++) {
+			modifiedContent.append(lines[i]).append("\n");
+		}
+		return modifiedContent.toString();
+	}
+
+	public static String getOrderData(String csvContent) {
+		String[] lines = csvContent.split("\n");
+
+		StringBuilder modifiedContent = new StringBuilder();
+
+			modifiedContent.append(lines[0]).append("\n");
+
+		return modifiedContent.toString();
+	}
+
+	public static String getOrderItemsData(String csvContent) {
+		String[] lines = csvContent.split("\n");
+
+		StringBuilder modifiedContent = new StringBuilder();
+		for (int i = 2; i < lines.length; i++) {
 			modifiedContent.append(lines[i]).append("\n");
 		}
 		return modifiedContent.toString();

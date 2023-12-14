@@ -1,6 +1,8 @@
 package com.example.spring.dropbox.config;
 
 
+import com.example.spring.dropbox.pojo.OrderRequestDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -36,6 +38,20 @@ public class MyWebSocketHandler extends TextWebSocketHandler {
             try {
                 System.out.println("broadcastMessage ");
                 session.sendMessage(new TextMessage(message));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void broadcastObject(OrderRequestDto request) {
+        cleanupClosedSessions();
+
+        for (WebSocketSession session : sessions) {
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                System.out.println("broadcastMessage ");
+                session.sendMessage(new TextMessage( mapper.writeValueAsString(request)));
             } catch (IOException e) {
                 e.printStackTrace();
             }

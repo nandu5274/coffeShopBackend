@@ -19,4 +19,9 @@ public class MainController {
 		return "index";
 	}
 
+	@GetMapping("/email")
+	public String email() throws Exception {
+		return "index";
+	}
+
 }
