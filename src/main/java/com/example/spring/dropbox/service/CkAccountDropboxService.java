@@ -3,11 +3,7 @@ package com.example.spring.dropbox.service;
 import com.dropbox.core.DbxException;
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.v2.DbxClientV2;
-import com.dropbox.core.v2.files.FileMetadata;
-import com.dropbox.core.v2.files.ListFolderResult;
-import com.dropbox.core.v2.files.Metadata;
-import com.dropbox.core.v2.files.UploadErrorException;
-import com.example.spring.dropbox.util.DropboxAction;
+import com.dropbox.core.v2.files.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,18 +17,14 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.dropbox.core.v2.files.WriteMode.OVERWRITE;
-import com.dropbox.core.v2.files.CreateFolderErrorException;
 
 @Service
 public class CkAccountDropboxService {
@@ -129,6 +121,14 @@ public class CkAccountDropboxService {
         System.out.println("downloadFile_sub files - "+ dropboxFileName);
         return new File(dropboxFileName);
     }
+    public File downloadZipFile(DbxClientV2 client, String dropboxFilePath, String dropboxFileName) throws DbxException, IOException {
+        try (OutputStream outputStream = new FileOutputStream(dropboxFileName)) {
+            client.files().downloadZip(dropboxFilePath).download(outputStream);
+        }
+
+        System.out.println("downloadFile_sub files - "+ dropboxFileName);
+        return new File(dropboxFileName);
+    }
 
     public boolean folderExists(DbxClientV2 client, String folderPath) {
         try {
@@ -219,4 +219,7 @@ public class CkAccountDropboxService {
             return false;
         }
     }
+
+
+
 }

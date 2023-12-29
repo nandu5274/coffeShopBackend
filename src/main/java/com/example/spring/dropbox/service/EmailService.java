@@ -20,4 +20,9 @@ public interface EmailService {
 
     void consolidatePaidOrderAutomatic();
 
+    void sendEntireOrderBackupDaily();
+
+    void clearOrderFiles();
+
+
 }

@@ -3,9 +3,7 @@ package com.example.spring.dropbox.service;
 import com.dropbox.core.DbxException;
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.v2.DbxClientV2;
-import com.dropbox.core.v2.files.FileMetadata;
-import com.dropbox.core.v2.files.Metadata;
-import com.dropbox.core.v2.files.UploadErrorException;
+import com.dropbox.core.v2.files.*;
 import com.example.spring.dropbox.model.DropboxItem;
 import com.example.spring.dropbox.util.DropboxAction;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -393,6 +391,28 @@ public class DropboxService {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
+	}
+
+
+	public String batchDeleteFile(DbxClientV2 client, List<String> fileName) throws DbxException {
+		List<DeleteArg> args= new ArrayList<>();
+		fileName.forEach(value -> {
+			DeleteArg arg= new DeleteArg(value);
+			args.add(arg);
+		});
+		DeleteBatchLaunch launch =  client.files().deleteBatch(args);
+		return launch.getAsyncJobIdValue();
+	}
+
+	public void permanentlyDeleted(DbxClientV2 client, String path) throws DbxException {
+		client.files().permanentlyDelete(path);
+
+	}
+
+	public String deleteBatchCheck(DbxClientV2 client, String jobId) throws DbxException {
+
+		DeleteBatchJobStatus  status =  client.files().deleteBatchCheck(jobId);
+		return status.tag().name();
 	}
 
 

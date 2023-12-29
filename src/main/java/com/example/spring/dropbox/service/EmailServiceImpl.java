@@ -31,14 +31,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.*;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 // Annotation
@@ -55,6 +53,10 @@ public class EmailServiceImpl implements EmailService {
     DropboxService dropboxService;
     @Autowired
     CSVReaderService cSVReaderService;
+
+    @Autowired
+    private ResourceLoader resourceLoader;
+
     @Value("${spring.mail.username}")
     private String sender;
 
@@ -125,9 +127,149 @@ public class EmailServiceImpl implements EmailService {
             return "Error while sending mail!!!";
         }
     }
+    public void clearDeletedFolder() {
+        try {
+            List<String> fileNames = new ArrayList<>();
+            DbxClientV2 dbxClientV2WithToken = dropboxService.dbxClientV2WithToken();
+            dropboxService.permanentlyDeleted(dbxClientV2WithToken, "/");
+        }catch(Exception e)
+        {
+
+        }
+    }
+    @Async
+    public void clearOrderFiles() {
+      //  clearDeletedFolder();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+        String currentDate = dateFormat.format(DateUtils.addDays(new Date(), -1));
+        try{
+            List<String> fileNames = new ArrayList<>();
+            DbxClientV2 dbxClientV2WithToken = dropboxService.dbxClientV2WithToken();
+            //get all files that needs to delete
+            List<Metadata> PaidOrderEntries = dbxClientV2WithToken.files().listFolder("/orders/paid_orders").getEntries();
+            for (Metadata entry : PaidOrderEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+            logger.info("\n paid order  files - {} ", fileNames.toString());
+            List<Metadata> approvalWaitingOrderEntries = dbxClientV2WithToken.files().listFolder("/orders/approval_waiting_orders").getEntries();
+            for (Metadata entry : approvalWaitingOrderEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+
+            logger.info("\n approvalWaitingOrderEntries  files - {} ", fileNames.toString());
+
+            List<Metadata> approvedOrderEntries = dbxClientV2WithToken.files().listFolder("/orders/approved_orders").getEntries();
+            for (Metadata entry : approvedOrderEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+            logger.info("\n approvedOrderEntries  files - {} ", fileNames.toString());
+            List<Metadata> checkoutOrdersEntries = dbxClientV2WithToken.files().listFolder("/orders/checkout_orders").getEntries();
+            for (Metadata entry : checkoutOrdersEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+            logger.info("\n checkoutOrdersEntries  files - {} ", fileNames.toString());
+            List<Metadata> kitchenOrdersEntries = dbxClientV2WithToken.files().listFolder("/orders/kitchen_orders").getEntries();
+            for (Metadata entry : kitchenOrdersEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+            logger.info("\n kitchenOrdersEntries  files - {} ", fileNames.toString());
+            List<Metadata> declineOrdersEntries = dbxClientV2WithToken.files().listFolder("/orders/decline_orders").getEntries();
+            for (Metadata entry : declineOrdersEntries) {
+                if (entry instanceof FileMetadata) {
+                    fileNames.add(entry.getPathDisplay());
+                }
+            }
+            logger.info("\n declineOrdersEntries  files - {} ", fileNames.toString());
+
+            if (!fileNames.isEmpty()) {
+                logger.info("\n calling batchDeleteFile for the files size - {} ", fileNames.size());
+                String jobID = dropboxService.batchDeleteFile(dbxClientV2WithToken, fileNames);
+                String status = checkBatchDeletionStatus(dbxClientV2WithToken, jobID);
+
+                logger.info("\n completed clearing the order   files - {} ", fileNames.toString());
+                if (status.equalsIgnoreCase("COMPLETE")) {
+                    EmailDetails emailDetails = new EmailDetails();
+                    emailDetails.setRecipient("cafekubera2223@gmail.com");
+                    emailDetails.setMsgBody("Hey! In\n  completed clearing the files  \nThanks");
+                    emailDetails.setSubject("completed clearing the files for the date  - "+ currentDate );
+                    sendSimpleMail(emailDetails);
+                } else {
+                    EmailDetails emailDetails = new EmailDetails();
+                    emailDetails.setRecipient("cafekubera2223@gmail.com");
+                    emailDetails.setMsgBody("Hey! In\n  error occurred clearing the files  \n\nThanks");
+                    emailDetails.setSubject("n error occurred clearing the files for the date  - "+ currentDate);
+                    sendSimpleMail(emailDetails);
+                }
+            } else {
+                EmailDetails emailDetails = new EmailDetails();
+                emailDetails.setRecipient("cafekubera2223@gmail.com");
+                emailDetails.setMsgBody("Hey! In\n  no files found to clear s  \n\nThanks");
+                emailDetails.setSubject("no files found to clear for the date  - "+ currentDate);
+                sendSimpleMail(emailDetails);
+            }
+        }
+        catch(Exception e)
+        {
+            logger.info("\n error occurred clearing the files - {} ",  e.getMessage());
+            EmailDetails emailDetails = new EmailDetails();
+            emailDetails.setRecipient("cafekubera2223@gmail.com");
+            emailDetails.setMsgBody("Hey! In\n  error occurred clearing the files  \n\nThanks");
+            emailDetails.setSubject("n error occurred clearing the files for the date  - "+ currentDate);
+            sendSimpleMail(emailDetails);
+        }
+    }
+
+    public String checkBatchDeletionStatus(DbxClientV2 client, String jobId) throws Exception {
+     //   Thread.sleep(300000);
+       String status =  dropboxService.deleteBatchCheck(client, jobId);
+        logger.info("\n deleteBatchCheck status - {} ",  status);
+        return  status;
+    }
+
+
 
     @Async
+    public void sendEntireOrderBackupDaily() {
+        try{
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+            String currentDate = dateFormat.format(DateUtils.addDays(new Date(), -1));
+            DbxClientV2 dbxClientV2WithToken = dropboxService.dbxClientV2WithToken();
+            File zipFIle = ckAccountDropboxService.downloadZipFile(dbxClientV2WithToken, "/orders",
+                    currentDate+"_orders.zip");
+            EmailDetails emailDetails = new EmailDetails();
+            emailDetails.setRecipient("cafekubera2223@gmail.com");
+            emailDetails.setMsgBody("Hey! In\n this zip file contains the backup for the " +currentDate+"  \n\nThanks");
+            emailDetails.setSubject("complete backup for the " + currentDate+"  \n\nThanks" );
+            Attachment attachment = new Attachment();
+            attachment.setFileContent(zipFIle);
+            attachment.setFileName(currentDate+"_orders.zip");
+            emailDetails.setAttachment(attachment);
+            sendMailWithFileAttachment(emailDetails);
+        } catch (Exception e)
+        {
+            EmailDetails emailDetails = new EmailDetails();
+            emailDetails.setRecipient("cafekubera2223@gmail.com");
+            emailDetails.setMsgBody("Hey! In\n error occurred while sending zip file \n\nThanks");
+            emailDetails.setSubject("error occurred while sending orders backup  zip file - " );
+            sendSimpleMail(emailDetails);
+        }
+
+    }
+    @Async
     public void consolidatePaidOrderAndTriggerMail(EmailDetails details, String currentDate) {
+        logger.info("\n version v1 - consolidatePaidOrderAndTriggerMail for file - {} ", details.getAttachment().getFileName());
         logger.info("\n consolidatePaidOrderAndTriggerMail for file - {} ", details.getAttachment().getFileName());
         PaidOrderDto response = convertCsvToDto(details);
         if (response != null) {
@@ -204,7 +346,7 @@ public class EmailServiceImpl implements EmailService {
                                 "/orders/paid_orders" + "/" + fileName, fileName);
                         String data = convretFileToString(downloadedFile);
                         EmailDetails emailDetails = new EmailDetails();
-                        emailDetails.setRecipient("nandishgowd@gmail.com");
+                        emailDetails.setRecipient("cafekubera2223@gmail.com");
                         emailDetails.setMsgBody("Hey! In\nThis is a message from the cafe kubera order payment completed \n\nThanks");
                         emailDetails.setSubject("skipped file details for the orders - " + downloadedFile.getName());
                         Attachment attachment = new Attachment();
@@ -216,7 +358,7 @@ public class EmailServiceImpl implements EmailService {
 
                     } catch (Exception e) {
                         EmailDetails emailDetails = new EmailDetails();
-                        emailDetails.setRecipient("nandishgowd@gmail.com");
+                        emailDetails.setRecipient("cafekubera2223@gmail.com");
                         emailDetails.setMsgBody("Hey! In\n error occurred while running paid order automate job \n\nThanks");
                         emailDetails.setSubject("error occurred while running paid order automate job for file - " +  fileName);
                         sendSimpleMail(emailDetails);
@@ -224,12 +366,16 @@ public class EmailServiceImpl implements EmailService {
                 });
 
             } else {
-                //all files processed sucessfully
+                EmailDetails emailDetails = new EmailDetails();
+                emailDetails.setRecipient("cafekubera2223@gmail.com");
+                emailDetails.setMsgBody("Hey! In\n All files processed successfully  \n\nThanks");
+                emailDetails.setSubject("All files processed successfully for paid orders (automatic)" );
+                sendSimpleMail(emailDetails);
             }
 
         } catch (Exception e) {
             EmailDetails emailDetails = new EmailDetails();
-            emailDetails.setRecipient("nandishgowd@gmail.com");
+            emailDetails.setRecipient("cafekubera2223@gmail.com");
             emailDetails.setMsgBody("Hey! In\n error occurred while running paid order automate job \n\nThanks");
             emailDetails.setSubject("error occurred while running paid order automate job" );
             sendSimpleMail(emailDetails);
@@ -286,7 +432,42 @@ public class EmailServiceImpl implements EmailService {
             return false;
         }
     }
+    public String sendMailWithFileAttachment(EmailDetails details) {
+        MimeMessage mimeMessage
+                = javaMailSender.createMimeMessage();
+        MimeMessageHelper mimeMessageHelper;
 
+        try {
+
+            // Setting multipart as true for attachments to
+            // be send
+            mimeMessageHelper
+                    = new MimeMessageHelper(mimeMessage, true);
+            mimeMessageHelper.setFrom(sender);
+            mimeMessageHelper.setTo(details.getRecipient());
+            mimeMessageHelper.setText(details.getMsgBody());
+            mimeMessageHelper.setSubject(
+                    details.getSubject());
+
+            // Adding the attachment
+
+
+            mimeMessageHelper.addAttachment(
+                    details.getAttachment().getFileName(), details.getAttachment().getFileContent());
+
+            // Sending the mail
+            javaMailSender.send(mimeMessage);
+            logger.info("\n Mail sent Successfully for - {} ", details.getAttachment().getFileName());
+            return "Mail sent Successfully";
+        }
+
+        // Catch block to handle MessagingException
+        catch (MessagingException e) {
+            logger.info("\n Error while sending mail for - {} ", details.getAttachment().getFileName());
+            // Display message when exception occurred
+            return "Error while sending mail!!!";
+        }
+    }
     public String sendMailWithCsvAttachment(EmailDetails details) {
         // Creating a mime message
         MimeMessage mimeMessage
@@ -314,6 +495,7 @@ public class EmailServiceImpl implements EmailService {
             // Sending the mail
             javaMailSender.send(mimeMessage);
             logger.info("\n Mail sent Successfully for - {} ", details.getAttachment().getFileName());
+            logger.info("\n Mail sent Successfully to - {} ", details.getRecipient());
             return "Mail sent Successfully";
         }
 
@@ -461,11 +643,12 @@ public class EmailServiceImpl implements EmailService {
 
     public boolean createFileAndProcess(DbxClientV2 dbxClientV2WithToken, String filePath, EmailDetails details, PaidOrderDto order)
             throws Exception {
-
-        //String fileName = "consolidated-"+currentDate+".xlsx";
-        String fileName = "templates/consolidated.xlsx";
-        Resource companyDataResource = new ClassPathResource(fileName);
-        File exsitingFile = companyDataResource.getFile();
+//
+//        //String fileName = "consolidated-"+currentDate+".xlsx";
+        String fileName = "consolidated.xlsx";
+        String tempFilePath = "/template/" + fileName;
+//         Resource companyDataResource = resourceLoader.getResource("classpath:templates/consolidated.xlsx");
+       File exsitingFile = ckAccountDropboxService.downloadFile(dbxClientV2WithToken, tempFilePath, fileName);
 
 
         // after getting the file add the paid order details to the file

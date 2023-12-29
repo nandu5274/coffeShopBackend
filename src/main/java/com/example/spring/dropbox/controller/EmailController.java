@@ -16,7 +16,12 @@ public class EmailController {
 
     @GetMapping("/")
     public String index() throws Exception {
-        return "email controller ";
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Kolkata"));
+        String currentDate = dateFormat.format(new Date());
+
+        return "version v2 email controller currentDate - " + currentDate;
     }
     @Autowired
     private EmailService emailService;
@@ -59,7 +64,22 @@ public class EmailController {
     public String sendPaidOrderAuto()
     {
         emailService.consolidatePaidOrderAutomatic();
+        return "status";
+    }
 
+
+    @GetMapping("/sendEntireOrderBackupDaily")
+    public String sendEntireOrderBackupDaily()
+    {
+        emailService.sendEntireOrderBackupDaily();
+        return "status";
+    }
+
+
+    @GetMapping("/clearOrderFiles")
+    public String clearOrderFiles()
+    {
+        emailService.clearOrderFiles();
         return "status";
     }
 }
